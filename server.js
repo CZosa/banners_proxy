@@ -1,100 +1,33 @@
 const express = require('express');
-const morgan = require('morgan');
-const path = require('path');
-const app = express();
-const request = require('request');
-const http = require('http');
-const bodyParser = require('body-parser');
 const port = process.env.PORT || 3000;
+const app = express();
+const httpProxy = require('http-proxy');
+const apiProxy = httpProxy.createProxyServer();
 
-app.use(bodyParser.urlencoded({extended:true}));
-app.use(bodyParser.json());
+const menuServer = 'http://ec2-52-43-228-173.us-west-2.compute.amazonaws.com/grub-reactor/2/';
+const nearbyServer = 'http://ec2-13-57-220-156.us-west-1.compute.amazonaws.com/';
+const bannerServer = 'http://ec2-54-193-75-21.us-west-1.compute.amazonaws.com/';
+const reviewServer = 'http://ec2-34-221-253-114.us-west-2.compute.amazonaws.com/grubhub/5/allreviews/';
 
-app.use(morgan('dev'));
-app.use('/:id', express.static(path.join(__dirname, 'public')));
 
-app.get(`/grub-reactor/:menuId/menu`, (req, res) => {
-  var menuInfo = {
-    host: 'localhost',
-    port: 3001,
-    path: `/grub-reactor/${req.params.menuId}/menu`,
-    method: 'GET',
-    headers: {
-      accept: 'application/json'
-    }
-  };
-  var menuInfo = http.request(menuInfo, (result) => {
-    result.on('data', (data) => {
-      res.status(200).send(data);
-    }).on('error', (err) => {
-      res.status(500).send("menu not found");
-    });
-  });
-  menuInfo.end();
+app.use('/grubhub/:id', express.static('public'));
+
+app.all('/grub-reactor/:rest-Id/menu/*', function(req, res) {
+  apiProxy.web(req, res, {target: menuServer});
 });
 
-
-app.get(`/restaurants/banners/:rest_id`, (req, res) => {
-  var bannerInfo = {
-    host: 'localhost',
-    port: 3005,
-    path: `/restaurants/banners/${req.params.rest_id}`,
-    method: 'GET',
-    headers: {
-      accept: 'application/json'
-    }
-  };
-  var bannerInfo = http.request(bannerInfo, (result) => {
-    result.on('data', (data) => {
-      res.status(200).send(data);
-    }).on('error', (err) => {
-      res.status(500).send("banner not found");
-    });
-  });
-  bannerInfo.end();
+app.all('/restaurant/:id', function(req, res) {
+  apiProxy.web(req, res, {target: nearbyServer});
 });
 
-
-app.get(`/restaurant/:id`, (req, res) => {
-  var nearbyInfo = {
-    host: 'localhost',
-    port: 3004,
-    path: `/restaurant/${req.params.id}`,
-    method: 'GET',
-    headers: {
-      accept: 'application/json'
-    }
-  };
-  var nearbyInfo = http.request(nearbyInfo, (result) => {
-    result.on('data', (data) => {
-      res.status(200).send(data);
-    }).on('error', (err) => {
-      res.status(500).send("nearby not found");
-    });
-  });
-  nearbyInfo.end();
+app.all("/restaurants/banners/:rest_id", function(req, res) {
+  apiProxy.web(req, res, {target: bannerServer});
 });
 
-app.get(`/:restaurantID/allreviews/reviews/`, (req, res) => {
-  var reviewInfo = {
-    host: 'localhost',
-    port: 3002,
-    path: `/${req.params.restaurantID}/allreviews/reviews/`,
-    method: 'GET',
-    headers: {
-      accept: 'application/json'
-    }
-  };
-  var reviewInfo = http.request(reviewInfo, (result) => {
-    result.on('data', (data) => {
-      res.status(200).send(data);
-    }).on('error', (err) => {
-      res.status(500).send("review not found");
-    });
-  });
-  reviewInfo.end();
+app.all("/grubhub/:rest_id/allreviews/*", function(req, res) {
+  apiProxy.web(req, res, {target: reviewServer});
 });
 
 app.listen(port, () => {
-  console.log(`server running at: http://localhost:${port}`);
+  console.log(`listening on port ${port}`);
 });
